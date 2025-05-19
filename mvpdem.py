@@ -444,7 +444,7 @@ if 'single_dicom_ready' not in st.session_state:
 @st.cache_resource
 def load_model():
     model = tf.keras.models.load_model(
-        r"D:\PhD Research\Experiments\Tooth_Map\Model\Dental_Segmentation-main\model100.h5",
+        r"Model\Dental_Segmentation-main\bonin_git\model100.h5",
         compile=False
     )
     return model
@@ -730,7 +730,7 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
             
     return all_coords
 
-def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, zip_output_path=None):
+def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, features, zip_output_path=None):
     os.makedirs(output_dir, exist_ok=True)
     saved_files = []
 
@@ -740,6 +740,10 @@ def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, zip_output_pat
         'Nerve': 15000,  # Medium gray
         'Enamel': 25000  # Bright white
     }
+    
+    # Set selected feature to bright value
+    if feature in gray_values:
+        gray_values[feature] = 25000
 
     # Padding compensation (should match build_annotation_dictionary)
     pad_left = 15
@@ -795,12 +799,13 @@ def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, zip_output_pat
                 zipf.write(f, os.path.basename(f))
 
     return saved_files
-st.title("🦷 Dental DICOM Annotator - Case 1 & 2")
+st.title("🦷 Dental DICOM Annotator - Case 1")
 
-tab1, tab2 = st.tabs(["📁 Case 1: Full DICOM Series", "🧪 Case 2: Single + Annotate All"])
+tab1, = st.tabs(["📁 Case 1: Full DICOM Series"])
 
 # ---------------- CASE 1 ----------------
 with tab1:
+    selected_structure = st.selectbox("Choose a structure to annotate:", ["Nerve", "Enamel", "Root"])
     uploaded_files = st.file_uploader("Upload full DICOM series (export1.dcm ... exportN.dcm)", type=["dcm"], accept_multiple_files=True)
 
     if uploaded_files:
@@ -837,43 +842,14 @@ with tab1:
             st.info("💾 Annotating original DICOMs...")
             zip_path = os.path.join(tmpdir, "annotated_dicoms.zip")
             output_folder = os.path.join(tmpdir, "annotated")
-            annotate_dicom_series(annotation_dict, dicom_dir, output_folder, zip_path)
+            if selected_structure == 'Nerve':
 
+                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
+            elif selected_structure == 'Root':
+                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
+            else: 
+                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
             with open(zip_path, "rb") as f:
                 st.download_button("⬇ Download Annotated Series", f, file_name="annotated_dicoms.zip")
 
 
-# ---------------- CASE 2 ----------------
-with tab2:
-    uploaded_dicom = st.file_uploader("Upload a single DICOM file", type=["dcm"])
-
-    if uploaded_dicom:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            dicom_path = os.path.join(tmpdir, "input.dcm")
-            with open(dicom_path, "wb") as f:
-                f.write(uploaded_dicom.read())
-
-            img_arr, png_img = dicom_to_png(dicom_path)
-            st.image(png_img, caption="PNG View")
-
-            pred_path = os.path.join(tmpdir, "mask.png")
-            _ = predict_and_save_mask(model, img_arr, pred_path)
-            padded_path = pad_mask_image(pred_path)
-
-            os.rename(padded_path, os.path.join(tmpdir, "mask_1.png"))
-            annotation_dict = build_annotation_dictionary(tmpdir)
-            st.session_state.annotation_dict = annotation_dict
-            st.session_state.single_dicom_ready = True
-
-            st.success("Annotation dictionary stored. Proceed to annotate full series below.")
-
-    if st.session_state.single_dicom_ready:
-        dicom_folder = st.text_input("Enter folder containing DICOM series to annotate:")
-        if dicom_folder and os.path.isdir(dicom_folder):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                output_folder = os.path.join(tmpdir, "annotated_output")
-                zip_path = os.path.join(tmpdir, "annotated_dicoms.zip")
-                annotate_dicom_series(st.session_state.annotation_dict, dicom_folder, output_folder, zip_path)
-
-                with open(zip_path, "rb") as f:
-                    st.download_button("⬇ Download Annotated Series (from Single DICOM)", f, file_name="annotated_dicoms.zip")
