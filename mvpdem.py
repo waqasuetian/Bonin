@@ -444,7 +444,7 @@ if 'single_dicom_ready' not in st.session_state:
 @st.cache_resource
 def load_model():
     model = tf.keras.models.load_model(
-        r"Model\Dental_Segmentation-main\bonin_git\model100.h5",
+        r"model100.h5",
         compile=False
     )
     return model
@@ -730,7 +730,7 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
             
     return all_coords
 
-def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, features, zip_output_path=None):
+def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature, zip_output_path=None):
     os.makedirs(output_dir, exist_ok=True)
     saved_files = []
 
