@@ -733,6 +733,7 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
 def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature, zip_output_path=None):
     os.makedirs(output_dir, exist_ok=True)
     saved_files = []
+    print(feature)
 
     # High-contrast grayscale values
     gray_values = {
@@ -741,10 +742,36 @@ def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature, zip_o
         'Enamel': 25000  # Bright white
     }
     
-    # Set selected feature to bright value
-    if feature in gray_values:
-        gray_values[feature] = 25000
-
+    if feature == "ALL":
+        gray_values = {     
+        'Root': 25000,     # Dark gray
+        'Nerve': 25000,  # Medium gray
+        'Enamel': 25000  # Bright white
+    }
+       
+    if feature == "Nerve":
+        gray_values = {     
+        'Root': 500,     # Dark gray
+        'Nerve': 25000,  # Medium gray
+        'Enamel': 1500  # Bright white
+    }
+    if feature == "Enamel":
+        gray_values = {     
+        'Root': 500,     # Dark gray
+        'Nerve': 1500,  # Medium gray
+        'Enamel': 25000  # Bright white
+    }
+    if feature == "Root":
+        gray_values = {     
+        'Root': 25000,     # Dark gray
+        'Nerve': 1500,  # Medium gray
+        'Enamel': 500  # Bright white
+    }
+    # # Set selected feature to bright value
+    # if feature in gray_values:
+    #     print("ata be ha ya ni")
+    #     gray_values[feature] = 25000
+    
     # Padding compensation (should match build_annotation_dictionary)
     pad_left = 15
     pad_top = 9
@@ -805,7 +832,7 @@ tab1, = st.tabs(["📁 Case 1: Full DICOM Series"])
 
 # ---------------- CASE 1 ----------------
 with tab1:
-    selected_structure = st.selectbox("Choose a structure to annotate:", ["Nerve", "Enamel", "Root"])
+    selected_structure = st.selectbox("Choose a structure to annotate:", ["Nerve", "Enamel", "Root", "ALL"])
     uploaded_files = st.file_uploader("Upload full DICOM series (export1.dcm ... exportN.dcm)", type=["dcm"], accept_multiple_files=True)
 
     if uploaded_files:
@@ -843,12 +870,13 @@ with tab1:
             zip_path = os.path.join(tmpdir, "annotated_dicoms.zip")
             output_folder = os.path.join(tmpdir, "annotated")
             if selected_structure == 'Nerve':
-
-                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
+                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "Nerve", zip_path)
             elif selected_structure == 'Root':
-                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
+                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "Root", zip_path)
+            elif selected_structure == 'ALL' :   
+                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "ALL", zip_path)
             else: 
-                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
+                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "Enamel", zip_path)
             with open(zip_path, "rb") as f:
                 st.download_button("⬇ Download Annotated Series", f, file_name="annotated_dicoms.zip")
 
