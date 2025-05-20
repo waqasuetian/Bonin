@@ -835,7 +835,10 @@ with tab1:
     selected_structure = st.selectbox("Choose a structure to annotate:", ["Nerve", "Enamel", "Root", "ALL"])
     uploaded_files = st.file_uploader("Upload full DICOM series (export1.dcm ... exportN.dcm)", type=["dcm"], accept_multiple_files=True)
 
-    if uploaded_files:
+    if "processing_done" not in st.session_state:
+        st.session_state.processing_done = False
+
+    if uploaded_files and not st.session_state.processing_done:
         with tempfile.TemporaryDirectory() as tmpdir:
             dicom_dir = os.path.join(tmpdir, "dicoms")
             os.makedirs(dicom_dir, exist_ok=True)
@@ -850,34 +853,47 @@ with tab1:
             os.makedirs(png_dir, exist_ok=True)
             os.makedirs(mask_dir, exist_ok=True)
 
-            for f in sorted(os.listdir(dicom_dir)):
+            dicom_files = sorted(os.listdir(dicom_dir))
+            total_steps = len(dicom_files) + 2
+            progress_bar = st.progress(0)
+            step = 0
+
+            for f in dicom_files:
                 input_path = os.path.join(dicom_dir, f)
                 idx = f.replace("export", "").replace(".dcm", "")
                 img_arr, png_img = dicom_to_png(input_path)
-                Image.fromarray((img_arr[0, :, :, 0] * 255).astype(np.uint8)).save(os.path.join(png_dir, f"slice_{idx}.png"))
+                Image.fromarray((img_arr[0, :, :, 0] * 255).astype(np.uint8)).save(
+                    os.path.join(png_dir, f"slice_{idx}.png")
+                )
 
                 pred_path = os.path.join(mask_dir, f"mask_{idx}.png")
                 _ = predict_and_save_mask(model, img_arr, pred_path)
                 pad_mask_image(pred_path)
 
-            st.success("✅ PNGs, Masks and Padded Masks generated.")
+                step += 1
+                progress_bar.progress(step / total_steps)
 
-            st.info("🔍 Building annotation dictionary...")
             annotation_dict = build_annotation_dictionary(mask_dir)
-            st.success("✅ Annotation dictionary ready.")
+            step += 1
+            progress_bar.progress(step / total_steps)
 
-            st.info("💾 Annotating original DICOMs...")
             zip_path = os.path.join(tmpdir, "annotated_dicoms.zip")
             output_folder = os.path.join(tmpdir, "annotated")
-            if selected_structure == 'Nerve':
-                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "Nerve", zip_path)
-            elif selected_structure == 'Root':
-                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "Root", zip_path)
-            elif selected_structure == 'ALL' :   
-                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "ALL", zip_path)
-            else: 
-                annotate_dicom_series(annotation_dict, dicom_dir, output_folder, "Enamel", zip_path)
+
+            annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
+            step += 1
+            progress_bar.progress(step / total_steps)
+
+            # Store result in session state to avoid rerun
             with open(zip_path, "rb") as f:
-                st.download_button("⬇ Download Annotated Series", f, file_name="annotated_dicoms.zip")
+                st.session_state.annotated_zip = f.read()
+
+            st.session_state.processing_done = True  # Prevent future reruns
+            progress_bar.empty()
+
+    # If already processed, just show download
+    if st.session_state.processing_done:
+        st.download_button("⬇ Download Annotated Series", st.session_state.annotated_zip, file_name="annotated_dicoms.zip")
+
 
 
