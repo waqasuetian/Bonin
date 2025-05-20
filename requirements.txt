@@ -6,6 +6,8 @@ Pillow==9.5.0
 opencv-python==4.8.0.76
 pydicom==2.4.4
 shutilwhich==1.1.0  # workaround for shutil needs in some environments
+libgl1
+
 
 # For concurrency (built-in, but adding futures for compatibility)
 futures; python_version < "3.2"
