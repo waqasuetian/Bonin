@@ -488,33 +488,33 @@ def pad_mask_image(mask_path, pad_top=9, pad_left=12):
 #------------ Annotation Dictionary ----------------
 
 
-def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
-    color_ranges = {
-        "Root": ([35, 50, 50], [85, 255, 255]),
-        "Nerve": ([90, 50, 50], [130, 255, 255]),
-        "Enamel": ([10, 50, 50], [25, 255, 255])
-    }
+# def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
+#     color_ranges = {
+#         "Root": ([35, 50, 50], [85, 255, 255]),
+#         "Nerve": ([90, 50, 50], [130, 255, 255]),
+#         "Enamel": ([10, 50, 50], [25, 255, 255])
+#     }
 
-    def process_image(filename):
-        image_path = os.path.join(image_folder, filename)
-        image = cv2.imread(image_path)
-        if image is None:
-            return filename, {}
-        padded_image = cv2.copyMakeBorder(image, pad_top, 0, pad_left, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
-        hsv = cv2.cvtColor(padded_image, cv2.COLOR_BGR2HSV)
-        color_coordinates = {}
-        for label, (lower, upper) in color_ranges.items():
-            mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), np.array(upper, dtype=np.uint8))
-            coords = np.column_stack(np.where(mask > 0))
-            coords = [(int(x), int(y)) for y, x in coords]
-            color_coordinates[label] = coords
-        return filename, color_coordinates
+#     def process_image(filename):
+#         image_path = os.path.join(image_folder, filename)
+#         image = cv2.imread(image_path)
+#         if image is None:
+#             return filename, {}
+#         padded_image = cv2.copyMakeBorder(image, pad_top, 0, pad_left, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+#         hsv = cv2.cvtColor(padded_image, cv2.COLOR_BGR2HSV)
+#         color_coordinates = {}
+#         for label, (lower, upper) in color_ranges.items():
+#             mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), np.array(upper, dtype=np.uint8))
+#             coords = np.column_stack(np.where(mask > 0))
+#             coords = [(int(x), int(y)) for y, x in coords]
+#             color_coordinates[label] = coords
+#         return filename, color_coordinates
 
-    all_coords = {}
-    with ThreadPoolExecutor() as executor:
-        for filename, coords in executor.map(process_image, os.listdir(image_folder)):
-            all_coords[filename] = coords
-    return all_coords
+#     all_coords = {}
+#     with ThreadPoolExecutor() as executor:
+#         for filename, coords in executor.map(process_image, os.listdir(image_folder)):
+#             all_coords[filename] = coords
+#     return all_coords
 
 # def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, zip_output_path=None):
    
@@ -694,11 +694,143 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
 #     return saved_files
 # --------------------------------------------------
 
-def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
+# def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
+#     color_ranges = {
+#         "Root": ([35, 50, 50], [85, 255, 255]),
+#         "Nerve": ([90, 50, 50], [130, 255, 255]),
+#         "Enamel": ([10, 50, 50], [25, 255, 255])
+#     }
+
+#     def process_image(filename):
+#         image_path = os.path.join(image_folder, filename)
+#         image = cv2.imread(image_path)
+#         if image is None:
+#             return filename, {}
+            
+#         # Apply padding to match DICOM dimensions
+#         padded_image = cv2.copyMakeBorder(image, pad_top, 0, pad_left, 0, 
+#                                         cv2.BORDER_CONSTANT, value=[0, 0, 0])
+#         hsv = cv2.cvtColor(padded_image, cv2.COLOR_BGR2HSV)
+        
+#         color_coordinates = {}
+#         for label, (lower, upper) in color_ranges.items():
+#             mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), 
+#                              np.array(upper, dtype=np.uint8))
+#             coords = np.column_stack(np.where(mask > 0))
+#             # Convert to (x, y) format and store as integers
+#             color_coordinates[label] = [(int(x), int(y)) for y, x in coords]
+            
+#         return filename, color_coordinates
+
+#     all_coords = {}
+#     with ThreadPoolExecutor() as executor:
+#         results = executor.map(process_image, os.listdir(image_folder))
+#         for filename, coords in results:
+#             all_coords[filename] = coords
+            
+#     return all_coords
+
+# def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature, zip_output_path=None):
+#     os.makedirs(output_dir, exist_ok=True)
+#     saved_files = []
+#     print(feature)
+
+#     # High-contrast grayscale values
+#     gray_values = {
+#         'Root': 500,     # Dark gray
+#         'Nerve': 15000,  # Medium gray
+#         'Enamel': 25000  # Bright white
+#     }
+    
+#     if feature == "ALL":
+#         gray_values = {     
+#         'Root': 25000,     # Dark gray
+#         'Nerve': 25000,  # Medium gray
+#         'Enamel': 25000  # Bright white
+#     }
+       
+#     if feature == "Nerve":
+#         gray_values = {     
+#         'Root': 500,     # Dark gray
+#         'Nerve': 25000,  # Medium gray
+#         'Enamel': 1500  # Bright white
+#     }
+#     if feature == "Enamel":
+#         gray_values = {     
+#         'Root': 500,     # Dark gray
+#         'Nerve': 1500,  # Medium gray
+#         'Enamel': 25000  # Bright white
+#     }
+#     if feature == "Root":
+#         gray_values = {     
+#         'Root': 25000,     # Dark gray
+#         'Nerve': 1500,  # Medium gray
+#         'Enamel': 500  # Bright white
+#     }
+    # # Set selected feature to bright value
+    # if feature in gray_values:
+    #     print("ata be ha ya ni")
+    #     gray_values[feature] = 25000
+    
+    # Padding compensation (should match build_annotation_dictionary)
+    # pad_left = 15
+    # pad_top = 9
+
+    # for filename in sorted(os.listdir(dicom_dir)):
+    #     if not filename.endswith(".dcm"):
+    #         continue
+
+    #     base = os.path.splitext(filename)[0]
+    #     if (match := re.search(r'\d+', base)):
+    #         mask_key = f"mask_{match.group()}_padded.png"
+    #     else:
+    #         st.warning(f"Couldn't extract number from {filename}")
+    #         continue
+
+    #     if mask_key not in annotation_dict:
+    #         st.warning(f"No annotations for {mask_key}")
+    #         continue
+
+    #     # Read and prepare DICOM
+    #     dicom_path = os.path.join(dicom_dir, filename)
+    #     ds = pydicom.dcmread(dicom_path)
+    #     arr = ds.pixel_array.copy().astype(np.int32)
+    #     h, w = arr.shape
+
+    #     # Apply annotations with padding compensation
+    #     for label, coords in annotation_dict[mask_key].items():
+    #         if (shade := gray_values.get(label)) is None:
+    #             continue
+                
+    #         for x, y in coords:
+    #             # Adjust for mask padding and ensure within bounds
+    #             adj_x = x - pad_left
+    #             adj_y = y - pad_top
+    #             if 0 <= adj_x < w and 0 <= adj_y < h:
+    #                 arr[adj_y, adj_x] = shade
+
+    #     # Maintain original data type constraints
+    #     arr = np.clip(arr, np.iinfo(ds.pixel_array.dtype).min,
+    #                   np.iinfo(ds.pixel_array.dtype).max)
+    #     ds.PixelData = arr.astype(ds.pixel_array.dtype).tobytes()
+
+    #     # Save annotated DICOM
+    #     out_path = os.path.join(output_dir, f"{base}_annot.dcm")
+    #     ds.save_as(out_path)
+    #     saved_files.append(out_path)
+
+    # # Create ZIP archive if requested
+    # if zip_output_path:
+    #     with ZipFile(zip_output_path, 'w') as zipf:
+    #         for f in saved_files:
+    #             zipf.write(f, os.path.basename(f))
+
+    # return saved_files
+def build_annotation_dictionary(image_folder, pad_top=9, pad_left=12):
     color_ranges = {
-        "Root": ([35, 50, 50], [85, 255, 255]),
-        "Nerve": ([90, 50, 50], [130, 255, 255]),
-        "Enamel": ([10, 50, 50], [25, 255, 255])
+        "Root": ([35, 50, 50], [85, 255, 255]),    # Green
+        "Nerve": ([90, 50, 50], [130, 255, 255]),  # Blue
+        "Enamel": ([10, 50, 50], [25, 255, 255])   # Orange
     }
 
     def process_image(filename):
@@ -706,20 +838,17 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
         image = cv2.imread(image_path)
         if image is None:
             return filename, {}
-            
-        # Apply padding to match DICOM dimensions
-        padded_image = cv2.copyMakeBorder(image, pad_top, 0, pad_left, 0, 
-                                        cv2.BORDER_CONSTANT, value=[0, 0, 0])
+
+        # Apply padding
+        padded_image = cv2.copyMakeBorder(image, pad_top, 0, pad_left, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
         hsv = cv2.cvtColor(padded_image, cv2.COLOR_BGR2HSV)
-        
+
         color_coordinates = {}
         for label, (lower, upper) in color_ranges.items():
-            mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), 
-                             np.array(upper, dtype=np.uint8))
-            coords = np.column_stack(np.where(mask > 0))
-            # Convert to (x, y) format and store as integers
-            color_coordinates[label] = [(int(x), int(y)) for y, x in coords]
-            
+            mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), np.array(upper, dtype=np.uint8))
+            coords = np.column_stack(np.where(mask > 0))  # (y, x)
+            color_coordinates[label] = [(int(x), int(y)) for y, x in coords]  # convert to (x, y)
+
         return filename, color_coordinates
 
     all_coords = {}
@@ -727,105 +856,76 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=15):
         results = executor.map(process_image, os.listdir(image_folder))
         for filename, coords in results:
             all_coords[filename] = coords
-            
+
     return all_coords
 
-def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature, zip_output_path=None):
+
+
+def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature="ALL", zip_output_path=None, pad_top=9, pad_left=15):
     os.makedirs(output_dir, exist_ok=True)
     saved_files = []
-    print(feature)
 
-    # High-contrast grayscale values
-    gray_values = {
-        'Root': 500,     # Dark gray
-        'Nerve': 15000,  # Medium gray
-        'Enamel': 25000  # Bright white
-    }
-    
+    # Grayscale mapping
     if feature == "ALL":
-        gray_values = {     
-        'Root': 25000,     # Dark gray
-        'Nerve': 25000,  # Medium gray
-        'Enamel': 25000  # Bright white
-    }
-       
-    if feature == "Nerve":
-        gray_values = {     
-        'Root': 500,     # Dark gray
-        'Nerve': 25000,  # Medium gray
-        'Enamel': 1500  # Bright white
-    }
-    if feature == "Enamel":
-        gray_values = {     
-        'Root': 500,     # Dark gray
-        'Nerve': 1500,  # Medium gray
-        'Enamel': 25000  # Bright white
-    }
-    if feature == "Root":
-        gray_values = {     
-        'Root': 25000,     # Dark gray
-        'Nerve': 1500,  # Medium gray
-        'Enamel': 500  # Bright white
-    }
-    # # Set selected feature to bright value
-    # if feature in gray_values:
-    #     print("ata be ha ya ni")
-    #     gray_values[feature] = 25000
-    
-    # Padding compensation (should match build_annotation_dictionary)
-    pad_left = 15
-    pad_top = 9
+        gray_values = { 'Root': 25000, 'Nerve': 25000, 'Enamel': 25000 }
+    elif feature == "Nerve":
+        gray_values = { 'Root': 500, 'Nerve': 25000, 'Enamel': 1500 }
+    elif feature == "Enamel":
+        gray_values = { 'Root': 500, 'Nerve': 1500, 'Enamel': 25000 }
+    elif feature == "Root":
+        gray_values = { 'Root': 25000, 'Nerve': 1500, 'Enamel': 500 }
+    else:
+        print(f"Unknown feature: {feature}")
+        return []
 
     for filename in sorted(os.listdir(dicom_dir)):
         if not filename.endswith(".dcm"):
             continue
 
         base = os.path.splitext(filename)[0]
-        if (match := re.search(r'\d+', base)):
-            mask_key = f"mask_{match.group()}_padded.png"
-        else:
-            st.warning(f"Couldn't extract number from {filename}")
+        match = re.search(r'\d+', base)
+        if not match:
+            print(f"Couldn't extract number from {filename}")
             continue
 
+        mask_key = f"mask_{match.group()}.png"
         if mask_key not in annotation_dict:
-            st.warning(f"No annotations for {mask_key}")
+            print(f"Skipping {filename}: no annotations found for {mask_key}")
             continue
 
-        # Read and prepare DICOM
         dicom_path = os.path.join(dicom_dir, filename)
         ds = pydicom.dcmread(dicom_path)
         arr = ds.pixel_array.copy().astype(np.int32)
         h, w = arr.shape
 
-        # Apply annotations with padding compensation
         for label, coords in annotation_dict[mask_key].items():
-            if (shade := gray_values.get(label)) is None:
+            shade = gray_values.get(label)
+            if shade is None:
                 continue
-                
             for x, y in coords:
-                # Adjust for mask padding and ensure within bounds
                 adj_x = x - pad_left
                 adj_y = y - pad_top
                 if 0 <= adj_x < w and 0 <= adj_y < h:
                     arr[adj_y, adj_x] = shade
 
-        # Maintain original data type constraints
-        arr = np.clip(arr, np.iinfo(ds.pixel_array.dtype).min,
-                      np.iinfo(ds.pixel_array.dtype).max)
+        # Clamp and save
+        if np.issubdtype(ds.pixel_array.dtype, np.integer):
+            arr = np.clip(arr, np.iinfo(ds.pixel_array.dtype).min, np.iinfo(ds.pixel_array.dtype).max)
         ds.PixelData = arr.astype(ds.pixel_array.dtype).tobytes()
 
-        # Save annotated DICOM
         out_path = os.path.join(output_dir, f"{base}_annot.dcm")
         ds.save_as(out_path)
         saved_files.append(out_path)
+        print(f"Saved annotated DICOM: {out_path}")
 
-    # Create ZIP archive if requested
+    # Optionally zip the results
     if zip_output_path:
         with ZipFile(zip_output_path, 'w') as zipf:
             for f in saved_files:
                 zipf.write(f, os.path.basename(f))
 
     return saved_files
+
 st.title("🦷 Dental DICOM Annotator - Case 1")
 
 tab1, = st.tabs(["📁 Case 1: Full DICOM Series"])
