@@ -1,4 +1,16 @@
-streamlit
-tensorflow
-numpy
-Pillow
+# Core packages
+streamlit==1.33.0
+tensorflow==2.15.0
+numpy==1.23.5
+Pillow==9.5.0
+opencv-python==4.8.0.76
+pydicom==2.4.4
+shutilwhich==1.1.0  # workaround for shutil needs in some environments
+
+# For concurrency (built-in, but adding futures for compatibility)
+futures; python_version < "3.2"
+
+# Zip, regex, and OS modules are built-in — no need to include
+
+# Optional: If deploying to Streamlit Cloud
+watchdog==3.0.0
