@@ -826,7 +826,32 @@ def pad_mask_image(mask_path, pad_top=9, pad_left=12):
     #             zipf.write(f, os.path.basename(f))
 
     # return saved_files
-def build_annotation_dictionary(image_folder, pad_top=9, pad_left=12):
+
+# ------------ Predict mask ----------------
+def predict_and_save_mask(model, preprocessed_input, output_path):
+    prediction = model.predict(preprocessed_input)[0]
+    mask = prediction[:, :, 0] if prediction.shape[-1] == 1 else prediction
+    mask_img = Image.fromarray((mask * 255).astype(np.uint8))
+    mask_img.save(output_path)
+    return mask
+
+# ------------ Padding ----------------
+
+def pad_mask_image(mask_path, pad_top=5, pad_left=9):
+    img = Image.open(mask_path).convert("L")
+
+    # Create a new image with the same content at the **same position** relative to the original DICOM
+    padded = Image.new("L", (img.width + pad_left, img.height + pad_top), 0)
+
+    # Paste the original mask so that it remains aligned to the bottom-left
+    # Place it at (pad_left, pad_top) = shifts content down and right → fix by placing it at (pad_left, 0)
+    padded.paste(img, (pad_left, 0))  # padding only on top and left in canvas, but not shifting vertically
+
+    padded_path = mask_path.replace(".png", "_padded.png")
+    padded.save(padded_path)
+    return padded_path
+
+def build_annotation_dictionary(image_folder):
     color_ranges = {
         "Root": ([35, 50, 50], [85, 255, 255]),    # Green
         "Nerve": ([90, 50, 50], [130, 255, 255]),  # Blue
@@ -840,7 +865,8 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=12):
             return filename, {}
 
         # Apply padding
-        padded_image = cv2.copyMakeBorder(image, pad_top, 0, pad_left, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+          # Apply padding: 9 pixels top, 0 bottom, 15 pixels left, 0 right
+        padded_image = cv2.copyMakeBorder(image, top=5, bottom=9, left=9, right=12, borderType=cv2.BORDER_CONSTANT, value=[0, 0, 0])
         hsv = cv2.cvtColor(padded_image, cv2.COLOR_BGR2HSV)
 
         color_coordinates = {}
@@ -861,7 +887,7 @@ def build_annotation_dictionary(image_folder, pad_top=9, pad_left=12):
 
 
 
-def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature="ALL", zip_output_path=None, pad_top=9, pad_left=15):
+def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature , zip_output_path=None, pad_top=5, pad_left=9):
     os.makedirs(output_dir, exist_ok=True)
     saved_files = []
 
@@ -869,7 +895,7 @@ def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature="ALL",
     if feature == "ALL":
         gray_values = { 'Root': 25000, 'Nerve': 25000, 'Enamel': 25000 }
     elif feature == "Nerve":
-        gray_values = { 'Root': 500, 'Nerve': 25000, 'Enamel': 1500 }
+        gray_values = { 'Root': 500, 'Nerve': 5000, 'Enamel': 1500 }
     elif feature == "Enamel":
         gray_values = { 'Root': 500, 'Nerve': 1500, 'Enamel': 25000 }
     elif feature == "Root":
@@ -994,6 +1020,3 @@ with tab1:
     # If already processed, just show download
     if st.session_state.processing_done:
         st.download_button("⬇ Download Annotated Series", st.session_state.annotated_zip, file_name="annotated_dicoms.zip")
-
-
-
