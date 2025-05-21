@@ -433,57 +433,57 @@ import numpy as np
 from PIL import Image, ImageDraw
 import re
 
-# ------------ Session state setup ----------------
-if 'annotation_dict' not in st.session_state:
-    st.session_state.annotation_dict = {}
+# # ------------ Session state setup ----------------
+# if 'annotation_dict' not in st.session_state:
+#     st.session_state.annotation_dict = {}
 
-if 'single_dicom_ready' not in st.session_state:
-    st.session_state.single_dicom_ready = False
+# if 'single_dicom_ready' not in st.session_state:
+#     st.session_state.single_dicom_ready = False
 
-# ------------ Load model ----------------
-@st.cache_resource
-def load_model():
-    model = tf.keras.models.load_model(
-        r"model100.h5",
-        compile=False
-    )
-    return model
+# # ------------ Load model ----------------
+# @st.cache_resource
+# def load_model():
+#     model = tf.keras.models.load_model(
+#         r"model100.h5",
+#         compile=False
+#     )
+#     return model
 
-model = load_model()
+# model = load_model()
 
-# ------------ DICOM to PNG ----------------
-def dicom_to_png(dicom_file, size=(256, 256)):
-    dicom_data = pydicom.dcmread(dicom_file)
-    pixel_array = dicom_data.pixel_array.astype(np.float32)
-    pixel_array -= np.min(pixel_array)
-    pixel_array /= np.max(pixel_array)
-    pixel_array *= 255.0
-    pixel_array = pixel_array.astype(np.uint8)
-    img = Image.fromarray(pixel_array).convert("L")
-    img_resized = img.resize(size)
+# # ------------ DICOM to PNG ----------------
+# def dicom_to_png(dicom_file, size=(256, 256)):
+#     dicom_data = pydicom.dcmread(dicom_file)
+#     pixel_array = dicom_data.pixel_array.astype(np.float32)
+#     pixel_array -= np.min(pixel_array)
+#     pixel_array /= np.max(pixel_array)
+#     pixel_array *= 255.0
+#     pixel_array = pixel_array.astype(np.uint8)
+#     img = Image.fromarray(pixel_array).convert("L")
+#     img_resized = img.resize(size)
 
-    img_arr = np.array(img_resized, dtype=np.float32) / 255.0
-    img_arr = np.expand_dims(img_arr, axis=-1)
-    img_arr = np.expand_dims(img_arr, axis=0)
+#     img_arr = np.array(img_resized, dtype=np.float32) / 255.0
+#     img_arr = np.expand_dims(img_arr, axis=-1)
+#     img_arr = np.expand_dims(img_arr, axis=0)
 
-    return img_arr, img_resized
+#     return img_arr, img_resized
 
-# ------------ Predict mask ----------------
-def predict_and_save_mask(model, preprocessed_input, output_path):
-    prediction = model.predict(preprocessed_input)[0]
-    mask = prediction[:, :, 0] if prediction.shape[-1] == 1 else prediction
-    mask_img = Image.fromarray((mask * 255).astype(np.uint8))
-    mask_img.save(output_path)
-    return mask
+# # ------------ Predict mask ----------------
+# def predict_and_save_mask(model, preprocessed_input, output_path):
+#     prediction = model.predict(preprocessed_input)[0]
+#     mask = prediction[:, :, 0] if prediction.shape[-1] == 1 else prediction
+#     mask_img = Image.fromarray((mask * 255).astype(np.uint8))
+#     mask_img.save(output_path)
+#     return mask
 
-# ------------ Padding ----------------
-def pad_mask_image(mask_path, pad_top=9, pad_left=12):
-    img = Image.open(mask_path)
-    padded = Image.new("L", (img.width + pad_left, img.height + pad_top), 0)
-    padded.paste(img, (pad_left, pad_top))
-    padded_path = mask_path.replace(".png", "_padded.png")
-    padded.save(padded_path)
-    return padded_path
+# # ------------ Padding ----------------
+# def pad_mask_image(mask_path, pad_top=9, pad_left=12):
+#     img = Image.open(mask_path)
+#     padded = Image.new("L", (img.width + pad_left, img.height + pad_top), 0)
+#     padded.paste(img, (pad_left, pad_top))
+#     padded_path = mask_path.replace(".png", "_padded.png")
+#     padded.save(padded_path)
+#     return padded_path
 
 #------------ Annotation Dictionary ----------------
 
@@ -827,7 +827,38 @@ def pad_mask_image(mask_path, pad_top=9, pad_left=12):
 
     # return saved_files
 
-# ------------ Predict mask ----------------
+# ------------ Session state setup ----------------
+if 'annotation_dict' not in st.session_state:
+    st.session_state.annotation_dict = {}
+if 'single_dicom_ready' not in st.session_state:
+    st.session_state.single_dicom_ready = False
+if 'processing_done' not in st.session_state:
+    st.session_state.processing_done = False
+
+# ------------ Load model ----------------
+@st.cache_resource
+def load_model():
+    return tf.keras.models.load_model(r"model100.h5", compile=False)
+
+model = load_model()
+
+# ------------ DICOM to PNG with enhanced normalization ----------------
+def dicom_to_png(dicom_file, size=(256, 256)):
+    dicom_data = pydicom.dcmread(dicom_file)
+    pixel_array = dicom_data.pixel_array.astype(np.float32)
+    pixel_array = (pixel_array - np.min(pixel_array)) / (np.max(pixel_array) - np.min(pixel_array))
+    pixel_array = (pixel_array * 255).astype(np.uint8)
+    
+    img = Image.fromarray(pixel_array).convert("L")
+    img_resized = img.resize(size)
+    
+    img_arr = np.array(img_resized, dtype=np.float32) / 255.0
+    img_arr = np.expand_dims(img_arr, axis=-1)
+    img_arr = np.expand_dims(img_arr, axis=0)
+    
+    return img_arr, img_resized
+
+# ------------ Mask prediction ----------------
 def predict_and_save_mask(model, preprocessed_input, output_path):
     prediction = model.predict(preprocessed_input)[0]
     mask = prediction[:, :, 0] if prediction.shape[-1] == 1 else prediction
@@ -835,27 +866,12 @@ def predict_and_save_mask(model, preprocessed_input, output_path):
     mask_img.save(output_path)
     return mask
 
-# ------------ Padding ----------------
-
-def pad_mask_image(mask_path, pad_top=5, pad_left=9):
-    img = Image.open(mask_path).convert("L")
-
-    # Create a new image with the same content at the **same position** relative to the original DICOM
-    padded = Image.new("L", (img.width + pad_left, img.height + pad_top), 0)
-
-    # Paste the original mask so that it remains aligned to the bottom-left
-    # Place it at (pad_left, pad_top) = shifts content down and right → fix by placing it at (pad_left, 0)
-    padded.paste(img, (pad_left, 0))  # padding only on top and left in canvas, but not shifting vertically
-
-    padded_path = mask_path.replace(".png", "_padded.png")
-    padded.save(padded_path)
-    return padded_path
-
+# ------------ Annotation dictionary builder ----------------
 def build_annotation_dictionary(image_folder):
     color_ranges = {
-        "Root": ([35, 50, 50], [85, 255, 255]),    # Green
-        "Nerve": ([90, 50, 50], [130, 255, 255]),  # Blue
-        "Enamel": ([10, 50, 50], [25, 255, 255])   # Orange
+        "Root": ([35, 50, 50], [85, 255, 255]),
+        "Nerve": ([90, 50, 50], [130, 255, 255]),
+        "Enamel": ([10, 50, 50], [25, 255, 255])
     }
 
     def process_image(filename):
@@ -864,16 +880,13 @@ def build_annotation_dictionary(image_folder):
         if image is None:
             return filename, {}
 
-        # Apply padding
-          # Apply padding: 9 pixels top, 0 bottom, 15 pixels left, 0 right
-        padded_image = cv2.copyMakeBorder(image, top=5, bottom=9, left=9, right=12, borderType=cv2.BORDER_CONSTANT, value=[0, 0, 0])
-        hsv = cv2.cvtColor(padded_image, cv2.COLOR_BGR2HSV)
-
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         color_coordinates = {}
+        
         for label, (lower, upper) in color_ranges.items():
             mask = cv2.inRange(hsv, np.array(lower, dtype=np.uint8), np.array(upper, dtype=np.uint8))
-            coords = np.column_stack(np.where(mask > 0))  # (y, x)
-            color_coordinates[label] = [(int(x), int(y)) for y, x in coords]  # convert to (x, y)
+            coords = np.column_stack(np.where(mask > 0))
+            color_coordinates[label] = [(int(x), int(y)) for y, x in coords]
 
         return filename, color_coordinates
 
@@ -885,22 +898,20 @@ def build_annotation_dictionary(image_folder):
 
     return all_coords
 
-
-
-def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature , zip_output_path=None, pad_top=5, pad_left=9):
+# ------------ Core DICOM annotation function ----------------
+def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature, 
+                         zip_output_path=None, required_left_mm=0.84, required_top_mm=0.0):
     os.makedirs(output_dir, exist_ok=True)
     saved_files = []
 
-    # Grayscale mapping
-    if feature == "ALL":
-        gray_values = { 'Root': 25000, 'Nerve': 25000, 'Enamel': 25000 }
-    elif feature == "Nerve":
-        gray_values = { 'Root': 500, 'Nerve': 5000, 'Enamel': 1500 }
-    elif feature == "Enamel":
-        gray_values = { 'Root': 500, 'Nerve': 1500, 'Enamel': 25000 }
-    elif feature == "Root":
-        gray_values = { 'Root': 25000, 'Nerve': 1500, 'Enamel': 500 }
-    else:
+    gray_values = {
+        "ALL": {'Root': 25000, 'Nerve': 25000, 'Enamel': 25000},
+        "Nerve": {'Root': 500, 'Nerve': 5000, 'Enamel': 1500},
+        "Enamel": {'Root': 500, 'Nerve': 1500, 'Enamel': 25000},
+        "Root": {'Root': 25000, 'Nerve': 1500, 'Enamel': 500}
+    }.get(feature, {})
+
+    if not gray_values:
         print(f"Unknown feature: {feature}")
         return []
 
@@ -908,43 +919,66 @@ def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature , zip_
         if not filename.endswith(".dcm"):
             continue
 
-        base = os.path.splitext(filename)[0]
-        match = re.search(r'\d+', base)
-        if not match:
-            print(f"Couldn't extract number from {filename}")
-            continue
-
-        mask_key = f"mask_{match.group()}.png"
-        if mask_key not in annotation_dict:
-            print(f"Skipping {filename}: no annotations found for {mask_key}")
-            continue
-
         dicom_path = os.path.join(dicom_dir, filename)
         ds = pydicom.dcmread(dicom_path)
         arr = ds.pixel_array.copy().astype(np.int32)
         h, w = arr.shape
 
+        # Enhanced metadata handling
+        try:
+            pixel_spacing = ds.PixelSpacing
+        except AttributeError:
+            # Fallback based on image data: 20.84mm = 104px → 0.2004 mm/px
+            pixel_spacing = [0.2004, 0.2004]
+
+        # Z-axis compensation (Slice Location)
+        try:
+            slice_position = float(ds.SliceLocation)
+        except:
+            slice_position = 0.0
+
+        # Dynamic padding calculation
+        pad_left_px = int(round(required_left_mm / pixel_spacing[1]))
+        pad_top_px = int(round(required_top_mm / pixel_spacing[0]))
+
+        # Apply Z-axis compensation
+        if abs(slice_position) > 0.1:
+            z_compensation = int(round(slice_position / pixel_spacing[0]))
+            pad_top_px += z_compensation
+
+        # File matching logic
+        base = os.path.splitext(filename)[0]
+        if (match := re.search(r'\d+', base)) is None:
+            continue
+
+        mask_key = f"mask_{match.group()}.png"
+        if mask_key not in annotation_dict:
+            continue
+
+        # Apply annotations
         for label, coords in annotation_dict[mask_key].items():
-            shade = gray_values.get(label)
-            if shade is None:
+            if (shade := gray_values.get(label)) is None:
                 continue
+            
             for x, y in coords:
-                adj_x = x - pad_left
-                adj_y = y - pad_top
+                adj_x = x + pad_left_px
+                adj_y = y + pad_top_px
+                
                 if 0 <= adj_x < w and 0 <= adj_y < h:
                     arr[adj_y, adj_x] = shade
+                else:
+                    print(f"Coordinate out of bounds: ({adj_x}, {adj_y})")
 
-        # Clamp and save
+        # Save modified DICOM
         if np.issubdtype(ds.pixel_array.dtype, np.integer):
-            arr = np.clip(arr, np.iinfo(ds.pixel_array.dtype).min, np.iinfo(ds.pixel_array.dtype).max)
+            arr = np.clip(arr, np.iinfo(ds.pixel_array.dtype).min, 
+                         np.iinfo(ds.pixel_array.dtype).max)
         ds.PixelData = arr.astype(ds.pixel_array.dtype).tobytes()
 
         out_path = os.path.join(output_dir, f"{base}_annot.dcm")
         ds.save_as(out_path)
         saved_files.append(out_path)
-        print(f"Saved annotated DICOM: {out_path}")
 
-    # Optionally zip the results
     if zip_output_path:
         with ZipFile(zip_output_path, 'w') as zipf:
             for f in saved_files:
@@ -952,71 +986,76 @@ def annotate_dicom_series(annotation_dict, dicom_dir, output_dir, feature , zip_
 
     return saved_files
 
+# ------------ Streamlit UI ----------------
 st.title("🦷 Dental DICOM Annotator - Case 1")
-
 tab1, = st.tabs(["📁 Case 1: Full DICOM Series"])
 
-# ---------------- CASE 1 ----------------
 with tab1:
-    selected_structure = st.selectbox("Choose a structure to annotate:", ["Nerve", "Enamel", "Root", "ALL"])
-    uploaded_files = st.file_uploader("Upload full DICOM series (export1.dcm ... exportN.dcm)", type=["dcm"], accept_multiple_files=True)
-
-    if "processing_done" not in st.session_state:
-        st.session_state.processing_done = False
+    selected_structure = st.selectbox("Choose annotation structure:", 
+                                    ["Nerve", "Enamel", "Root", "ALL"])
+    uploaded_files = st.file_uploader("Upload DICOM series", 
+                                    type=["dcm"], accept_multiple_files=True)
 
     if uploaded_files and not st.session_state.processing_done:
         with tempfile.TemporaryDirectory() as tmpdir:
+            # Directory setup
             dicom_dir = os.path.join(tmpdir, "dicoms")
-            os.makedirs(dicom_dir, exist_ok=True)
-
-            for file in uploaded_files:
-                out_path = os.path.join(dicom_dir, file.name)
-                with open(out_path, "wb") as f:
-                    f.write(file.read())
-
-            png_dir = os.path.join(tmpdir, "pngs")
             mask_dir = os.path.join(tmpdir, "masks")
-            os.makedirs(png_dir, exist_ok=True)
+            os.makedirs(dicom_dir, exist_ok=True)
             os.makedirs(mask_dir, exist_ok=True)
 
-            dicom_files = sorted(os.listdir(dicom_dir))
-            total_steps = len(dicom_files) + 2
+            # Save uploaded files
+            for file in uploaded_files:
+                with open(os.path.join(dicom_dir, file.name), "wb") as f:
+                    f.write(file.getbuffer())
+
+            # Process DICOM series
             progress_bar = st.progress(0)
-            step = 0
+            total_files = len(uploaded_files)
+            
+            # Generate masks
+            for i, filename in enumerate(sorted(os.listdir(dicom_dir))):
+                dicom_path = os.path.join(dicom_dir, filename)
+                idx = re.search(r'\d+', filename).group()
+                
+                # Process DICOM
+                img_arr, _ = dicom_to_png(dicom_path)
+                mask_path = os.path.join(mask_dir, f"mask_{idx}.png")
+                predict_and_save_mask(model, img_arr, mask_path)
+                
+                progress_bar.progress((i+1)/total_files)
 
-            for f in dicom_files:
-                input_path = os.path.join(dicom_dir, f)
-                idx = f.replace("export", "").replace(".dcm", "")
-                img_arr, png_img = dicom_to_png(input_path)
-                Image.fromarray((img_arr[0, :, :, 0] * 255).astype(np.uint8)).save(
-                    os.path.join(png_dir, f"slice_{idx}.png")
-                )
-
-                pred_path = os.path.join(mask_dir, f"mask_{idx}.png")
-                _ = predict_and_save_mask(model, img_arr, pred_path)
-                pad_mask_image(pred_path)
-
-                step += 1
-                progress_bar.progress(step / total_steps)
-
+            # Build annotations
             annotation_dict = build_annotation_dictionary(mask_dir)
-            step += 1
-            progress_bar.progress(step / total_steps)
-
+            
+            # Annotate DICOMs
             zip_path = os.path.join(tmpdir, "annotated_dicoms.zip")
             output_folder = os.path.join(tmpdir, "annotated")
+            
+            annotate_dicom_series(
+                annotation_dict,
+                dicom_dir,
+                output_folder,
+                selected_structure,
+                zip_output_path=zip_path,
+                required_left_mm=1.84,  # From image data
+                required_top_mm=2.0
+            )
 
-            annotate_dicom_series(annotation_dict, dicom_dir, output_folder, selected_structure, zip_path)
-            step += 1
-            progress_bar.progress(step / total_steps)
-
-            # Store result in session state to avoid rerun
+            # Store results
             with open(zip_path, "rb") as f:
                 st.session_state.annotated_zip = f.read()
-
-            st.session_state.processing_done = True  # Prevent future reruns
+            
+            st.session_state.processing_done = True
             progress_bar.empty()
 
-    # If already processed, just show download
     if st.session_state.processing_done:
-        st.download_button("⬇ Download Annotated Series", st.session_state.annotated_zip, file_name="annotated_dicoms.zip")
+        st.download_button(
+            "⬇ Download Annotated Series",
+            data=st.session_state.annotated_zip,
+            file_name="annotated_series.zip",
+            mime="application/zip"
+        )
+        if st.button("Reset Processor"):
+            st.session_state.processing_done = False
+            st.experimental_rerun()
